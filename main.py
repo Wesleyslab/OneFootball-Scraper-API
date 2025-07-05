@@ -1,14 +1,14 @@
 import os
 from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.security.api_key import APIKeyHeader
-import pytest
+from typing import List
 
-from scraping import coletar_noticias
-from supabase_handler import verificar_noticias_existentes
+from scraping import coletar_titulos_noticias, coletar_detalhes_noticia
+from supabase_handler import verificar_titulos_existentes
 
 app = FastAPI()
 
-# Configuração de autenticação via API Key
+# Autenticação via API Key
 API_KEY_NAME = "X-API-KEY"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
@@ -21,30 +21,33 @@ def verify_api_key(api_key: str = Depends(api_key_header)):
     return True
 
 @app.get("/scrape", dependencies=[Depends(verify_api_key)])
-def scrape_onefootball(link: str = Query(..., description="Link da página do time no OneFootball")):
+def scrape_onefootball(link: str = Query(..., description="URL da página do clube no OneFootball")):
     """
-    Executa o scraping de notícias do OneFootball e retorna apenas as novas.
-    Requer header X-API-KEY com a chave correta.
+    1) Coleta todos os títulos de notícias (primeira página).
+    2) Verifica no Supabase quais títulos ainda não foram coletados.
+    3) Para cada notícia nova, coleta título, texto da matéria, fonte e data de publicação.
     """
-    noticias = coletar_noticias(link)
-    ids = [n["noticia_id"] for n in noticias]
-    ids_existentes = verificar_noticias_existentes(ids)
-    novas_noticias = [n for n in noticias if n["noticia_id"] not in ids_existentes]
-    return {"novas_noticias": novas_noticias}
+    # Passo 1: metadados (titulo, link, fonte) das notícias
+    metadados = coletar_titulos_noticias(link)
+    titulos = [m["titulo"] for m in metadados]
+
+    # Passo 2: filtra apenas os não processados
+    existentes = verificar_titulos_existentes(titulos)
+    novos = [m for m in metadados if m["titulo"] not in existentes]
+
+    # Passo 3: para cada novo, extrai detalhes completos
+    resultados: List[dict] = []
+    for m in novos:
+        texto, data_pub = coletar_detalhes_noticia(m["link"])
+        resultados.append({
+            "titulo": m["titulo"],
+            "texto": texto,
+            "fonte": m["fonte"],
+            "data_publicacao": data_pub
+        })
+
+    return {"novas_noticias": resultados}
 
 @app.get("/health")
 def health():
-    """Endpoint de health check."""
     return {"status": "ok"}
-
-@app.get("/run-tests", dependencies=[Depends(verify_api_key)])
-def run_tests():
-    """
-    Executa a suíte de testes (tester.py) e retorna status success ou fail.
-    Requer header X-API-KEY.
-    """
-    # Executa pytest na suite de testes
-    exit_code = pytest.main(["-q", "--disable-warnings", "--maxfail=1", os.path.join(os.getcwd(), "tester.py")])
-    if exit_code == 0:
-        return {"status": "success"}
-    return {"status": "fail"}

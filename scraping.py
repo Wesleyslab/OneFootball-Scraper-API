@@ -12,33 +12,13 @@ from utils import USER_AGENTS
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-def coletar_noticias(
-    link: str,
-    max_retries: int = 3,
-    backoff_factor: float = 0.5,
-    min_delay: float = 1,
-    max_delay: float = 3
-) -> list:
+
+def coletar_titulos_noticias(link: str, max_retries: int = 3, backoff_factor: float = 0.5) -> list:
     """
-    Coleta notícias do OneFootball de uma página de time.
-
-    Estratégias para reduzir detecção:
-    - Randomização de User-Agent e outros headers
-    - Delay aleatório entre requisições
-    - Retry com backoff exponencial
-
-    :param link: URL da página do time no OneFootball
-    :param max_retries: Número máximo de tentativas em caso de erro de conexão
-    :param backoff_factor: Fator de backoff para retries exponenciais
-    :param min_delay: Delay mínimo aleatório antes da requisição
-    :param max_delay: Delay máximo aleatório antes da requisição
-    :return: Lista de dicionários com título, fonte, noticia_id e link
+    Coleta metadados das notícias (título, link e fonte) da primeira página de um time no OneFootball.
+    :param link: URL da página do clube
+    :return: lista de dicts com 'titulo', 'link', 'fonte'
     """
-    # Delay aleatório antes da requisição
-    delay = random.uniform(min_delay, max_delay)
-    logger.info(f"Aguardando {delay:.2f}s antes de acessar {link}")
-    time.sleep(delay)
-
     # Configura sessão com retry
     session = requests.Session()
     retry_strategy = Retry(
@@ -51,15 +31,7 @@ def coletar_noticias(
     session.mount("https://", adapter)
     session.mount("http://", adapter)
 
-    # Cabeçalhos randomizados
-    headers = {
-        "User-Agent": random.choice(USER_AGENTS),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Referer": "https://onefootball.com"
-    }
-
+    headers = {"User-Agent": random.choice(USER_AGENTS)}
     try:
         response = session.get(link, headers=headers, timeout=10)
         response.raise_for_status()
@@ -70,25 +42,65 @@ def coletar_noticias(
     soup = BeautifulSoup(response.text, "html.parser")
     noticias = []
 
-    # Seleciona todos os links de notícia
-    for a in soup.select("a[href*='/noticias/']"):
+    # Seleciona apenas links de notícias na primeira página
+    for a in soup.select("a[href*='/noticias/']"):  
         href = a.get('href')
         titulo = a.get_text(strip=True)
-
         if not titulo or not href:
             continue
-
-        # Extrai ID da notícia a partir do slug
-        noticia_id = href.rstrip('/').split('-')[-1]
-        # Garante link absoluto
         full_link = href if href.startswith('http') else f"https://onefootball.com{href}"
-
         noticias.append({
             'titulo': titulo,
-            'fonte': 'OneFootball',
-            'noticia_id': noticia_id,
-            'link': full_link
+            'link': full_link,
+            'fonte': 'OneFootball'
         })
 
-    logger.info(f"Coletadas {len(noticias)} notícias de {link}")
-    return noticias
+    logger.info(f"Encontrados {len(noticias)} títulos de notícias em {link}")
+    # Remover duplicatas baseadas no título
+    unique = {n['titulo']: n for n in noticias}.values()
+    return list(unique)
+
+
+def coletar_detalhes_noticia(link: str, max_retries: int = 3, backoff_factor: float = 0.5) -> tuple:
+    """
+    Coleta o texto completo e data de publicação de uma notícia.
+    :param link: URL da notícia
+    :return: (texto, data_publicacao) onde data_publicacao está em formato ISO ou vazio
+    """
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=max_retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+
+    headers = {"User-Agent": random.choice(USER_AGENTS)}
+    try:
+        response = session.get(link, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.error(f"Erro ao acessar {link}: {e}")
+        raise
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Data de publicação via meta ou time
+    meta = soup.find('meta', property='article:published_time')
+    if meta and meta.has_attr('content'):
+        data_pub = meta['content']
+    else:
+        time_tag = soup.find('time')
+        data_pub = time_tag['datetime'] if time_tag and time_tag.has_attr('datetime') else ''
+
+    # Extrai parágrafos do corpo da notícia
+    # Tenta selecionar contêiner principal; caso não, pega todos os <p>
+    container = soup.find('div', attrs={'data-testid': 'article-body'}) or soup
+    paragrafos = [p.get_text(strip=True) for p in container.find_all('p')]
+    texto = '\n'.join(paragrafos)
+
+    logger.info(f"Detalhes coletados de {link}: {len(paragrafos)} parágrafos e data {data_pub}")
+    return texto, data_pub

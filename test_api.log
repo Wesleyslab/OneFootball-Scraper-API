@@ -38,3 +38,13 @@
 2025-07-05 13:36:11,066 - INFO - Títulos existentes: []
 2025-07-05 13:36:19,034 - INFO - Endpoint /scrape status: 200
 2025-07-05 13:36:19,509 - INFO - Supabase connection successful, data: []
+2025-07-05 13:45:31,695 - INFO - coletar_titulos_noticias retornou 6 itens.
+2025-07-05 13:45:32,346 - INFO - coletar_detalhes_noticia retornou texto de 2390 chars e data 2025-07-05T14:58:06Z
+2025-07-05 13:45:33,485 - INFO - Títulos existentes: []
+2025-07-05 13:45:40,257 - INFO - Endpoint /scrape status: 200
+2025-07-05 13:45:40,877 - INFO - Supabase connection successful, data: []
+2025-07-05 13:50:03,993 - INFO - coletar_titulos_noticias retornou 6 itens.
+2025-07-05 13:50:06,843 - INFO - coletar_detalhes_noticia retornou texto de 2390 chars e data 2025-07-05T14:58:06Z
+2025-07-05 13:50:07,934 - INFO - Títulos existentes: []
+2025-07-05 13:50:28,447 - INFO - Endpoint /scrape status: 200
+2025-07-05 13:50:29,006 - INFO - Supabase connection successful, data: []

@@ -12,7 +12,6 @@ from utils import USER_AGENTS
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-
 def coletar_titulos_noticias(
     link: str,
     max_retries: int = 3,
@@ -25,6 +24,9 @@ def coletar_titulos_noticias(
     :param link: URL da página do clube
     :return: lista de dicts com 'titulo', 'link', 'fonte', 'noticia_id'
     """
+    # Delay para evitar bloqueios
+    time.sleep(random.uniform(1, 2))
+
     session = requests.Session()
     retry_strategy = Retry(
         total=max_retries,
@@ -47,15 +49,13 @@ def coletar_titulos_noticias(
     soup = BeautifulSoup(response.text, "html.parser")
     noticias = []
 
-    # Seleciona apenas links de notícias na primeira página
     for a in soup.select("a[href*='/noticias/']"):
         href = a.get('href')
         titulo = a.get_text(strip=True)
         if not titulo or not href:
             continue
-        # Extrai ID da notícia
-        noticia_id = href.rstrip('/').split('-')[-1]
         full_link = href if href.startswith('http') else f"https://onefootball.com{href}"
+        noticia_id = href.rstrip('/').split('-')[-1]
         noticias.append({
             'titulo': titulo,
             'link': full_link,
@@ -64,7 +64,7 @@ def coletar_titulos_noticias(
         })
 
     logger.info(f"Encontrados {len(noticias)} títulos de notícias em {link}")
-    # Remover duplicatas baseadas em noticia_id, mantendo o primeiro
+    # Deduplica por noticia_id
     unique = {}
     for n in noticias:
         if n['noticia_id'] not in unique:
@@ -82,6 +82,9 @@ def coletar_detalhes_noticia(
     :param link: URL da notícia
     :return: (texto, data_publicacao) onde data_publicacao está em formato ISO ou vazio
     """
+    # Delay entre requisições para evitar bloqueios
+    time.sleep(random.uniform(1, 2))
+
     session = requests.Session()
     retry_strategy = Retry(
         total=max_retries,
@@ -103,7 +106,6 @@ def coletar_detalhes_noticia(
 
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # Data de publicação via meta ou time
     meta = soup.find('meta', property='article:published_time')
     if meta and meta.has_attr('content'):
         data_pub = meta['content']
@@ -111,7 +113,6 @@ def coletar_detalhes_noticia(
         time_tag = soup.find('time')
         data_pub = time_tag['datetime'] if time_tag and time_tag.has_attr('datetime') else ''
 
-    # Extrai parágrafos do corpo da notícia
     container = soup.find('div', attrs={'data-testid': 'article-body'}) or soup
     paragrafos = [p.get_text(strip=True) for p in container.find_all('p')]
     texto = '\n'.join(paragrafos)

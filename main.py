@@ -8,7 +8,7 @@ from supabase_handler import verificar_titulos_existentes
 
 app = FastAPI()
 
-# Autenticação via API Key
+# Configuração da autenticação via API Key
 API_KEY_NAME = "X-API-KEY"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
@@ -25,29 +25,30 @@ def scrape_onefootball(link: str = Query(..., description="URL da página do clu
     """
     1) Coleta todos os títulos de notícias (primeira página).
     2) Verifica no Supabase quais títulos ainda não foram coletados.
-    3) Para cada notícia nova, coleta título, texto da matéria, fonte e data de publicação.
+    3) Para cada notícia nova, adiciona texto e data ao metadado existente.
+
+    Retorna: {"novas_noticias": [metadado_completo, ...]}
     """
-    # Passo 1: metadados (titulo, link, fonte) das notícias
+    # Passo 1: metadados iniciais (titulo, link, fonte, noticia_id)
     metadados = coletar_titulos_noticias(link)
     titulos = [m["titulo"] for m in metadados]
 
-    # Passo 2: filtra apenas os não processados
+    # Passo 2: filtra títulos já processados
     existentes = verificar_titulos_existentes(titulos)
-    novos = [m for m in metadados if m["titulo"] not in existentes]
 
-    # Passo 3: para cada novo, extrai detalhes completos
+    # Passo 3: preenche detalhes nas entradas novas
     resultados: List[dict] = []
-    for m in novos:
+    for m in metadados:
+        if m["titulo"] in existentes:
+            continue
         texto, data_pub = coletar_detalhes_noticia(m["link"])
-        resultados.append({
-            "titulo": m["titulo"],
-            "texto": texto,
-            "fonte": m["fonte"],
-            "data_publicacao": data_pub
-        })
+        m["texto"] = texto
+        m["data_publicacao"] = data_pub
+        resultados.append(m)
 
     return {"novas_noticias": resultados}
 
 @app.get("/health")
 def health():
+    """Health check endpoint."""
     return {"status": "ok"}

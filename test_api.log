@@ -1,0 +1,30 @@
+2025-07-05 11:01:12,416 - INFO - coletar_noticias retornou 12 itens.
+2025-07-05 11:01:12,416 - INFO - coletar_noticias retornou 12 itens.
+2025-07-05 11:01:13,568 - INFO - IDs existentes: []
+2025-07-05 11:01:13,568 - INFO - IDs existentes: []
+2025-07-05 11:01:15,810 - INFO - Endpoint /scrape status: 200
+2025-07-05 11:01:15,810 - INFO - Endpoint /scrape status: 200
+2025-07-05 11:02:55,982 - INFO - coletar_noticias retornou 12 itens.
+2025-07-05 11:02:55,982 - INFO - coletar_noticias retornou 12 itens.
+2025-07-05 11:02:57,014 - INFO - IDs existentes: []
+2025-07-05 11:02:57,014 - INFO - IDs existentes: []
+2025-07-05 11:02:59,163 - INFO - Endpoint /scrape status: 200
+2025-07-05 11:02:59,163 - INFO - Endpoint /scrape status: 200
+2025-07-05 11:02:59,622 - INFO - Supabase connection successful, data: []
+2025-07-05 11:02:59,622 - INFO - Supabase connection successful, data: []
+2025-07-05 11:08:38,070 - INFO - coletar_noticias retornou 12 itens.
+2025-07-05 11:08:38,070 - INFO - coletar_noticias retornou 12 itens.
+2025-07-05 11:08:38,874 - INFO - IDs existentes: []
+2025-07-05 11:08:38,874 - INFO - IDs existentes: []
+2025-07-05 11:08:38,892 - INFO - Endpoint /scrape status: 401
+2025-07-05 11:08:38,892 - INFO - Endpoint /scrape status: 401
+2025-07-05 11:08:39,304 - INFO - Supabase connection successful, data: []
+2025-07-05 11:08:39,304 - INFO - Supabase connection successful, data: []
+2025-07-05 11:09:45,535 - INFO - coletar_noticias retornou 12 itens.
+2025-07-05 11:09:45,535 - INFO - coletar_noticias retornou 12 itens.
+2025-07-05 11:09:46,617 - INFO - IDs existentes: []
+2025-07-05 11:09:46,617 - INFO - IDs existentes: []
+2025-07-05 11:09:49,580 - INFO - Endpoint /scrape status: 200
+2025-07-05 11:09:49,580 - INFO - Endpoint /scrape status: 200
+2025-07-05 11:09:50,069 - INFO - Supabase connection successful, data: []
+2025-07-05 11:09:50,069 - INFO - Supabase connection successful, data: []

@@ -34,19 +34,9 @@ def verificar_noticias_existentes(lista_ids: list) -> list:
     return [item["noticia_id"] for item in response.data]
 
 
-def verificar_titulos_existentes(lista_titulos: list) -> list:
-    """
-    Verifica quais títulos de notícia já existem na tabela `noticias_onefootball`.
-
-    :param lista_titulos: Lista de títulos a verificar
-    :return: Lista de títulos que já estão armazenados no Supabase
-    """
-    response = (
-        supabase
-        .table("noticias_onefootball")
-        .select("titulo")
-        .in_("titulo", lista_titulos)
+def verificar_links_existentes(lista_links: list) -> list:
+    resp = supabase.table("noticias_onefootball")\
+        .select("link")\
+        .in_("link", lista_links)\
         .execute()
-    )
-
-    return [item["titulo"] for item in response.data]
+    return [r["link"] for r in resp.data]

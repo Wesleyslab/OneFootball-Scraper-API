@@ -12,6 +12,7 @@ from utils import USER_AGENTS
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+
 def coletar_titulos_noticias(
     link: str,
     max_retries: int = 3,
@@ -79,6 +80,11 @@ def coletar_detalhes_noticia(
 ) -> tuple:
     """
     Coleta o texto completo e data de publicação de uma notícia.
+
+    1) Procura tag <article>.
+    2) Se não achar, tenta seletor genérico.
+    3) Extrai apenas <p> diretos e filtra linhas indesejadas.
+
     :param link: URL da notícia
     :return: (texto, data_publicacao) onde data_publicacao está em formato ISO ou vazio
     """
@@ -106,6 +112,7 @@ def coletar_detalhes_noticia(
 
     soup = BeautifulSoup(response.text, "html.parser")
 
+    # Extrai data de publicação
     meta = soup.find('meta', property='article:published_time')
     if meta and meta.has_attr('content'):
         data_pub = meta['content']
@@ -113,9 +120,24 @@ def coletar_detalhes_noticia(
         time_tag = soup.find('time')
         data_pub = time_tag['datetime'] if time_tag and time_tag.has_attr('datetime') else ''
 
-    container = soup.find('div', attrs={'data-testid': 'article-body'}) or soup
-    paragrafos = [p.get_text(strip=True) for p in container.find_all('p')]
-    texto = '\n'.join(paragrafos)
+    # Seleciona container principal
+    container = soup.find('article')
+    if not container:
+        container = soup.find('div', attrs={'data-testid': 'article-body'})
+    if not container:
+        container = soup.find('div', class_='article-detail')
+    if not container:
+        raise RuntimeError("Container de artigo não encontrado")
 
+    # Extrai parágrafos diretos e filtra header/footer
+    paragrafos = []
+    for p in container.find_all('p', recursive=False):
+        txt = p.get_text(strip=True)
+        lower = txt.lower()
+        if not txt or lower.startswith('abrir menu') or lower.startswith('siga nosso conteúdo'):
+            continue
+        paragrafos.append(txt)
+
+    texto = '\n'.join(paragrafos)
     logger.info(f"Detalhes coletados de {link}: {len(paragrafos)} parágrafos e data {data_pub}")
     return texto, data_pub

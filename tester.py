@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from main import app
 from scraping import coletar_titulos_noticias, coletar_detalhes_noticia
-from supabase_handler import verificar_titulos_existentes, supabase
+from supabase_handler import verificar_links_existentes, supabase
 
 # Configura logger para registrar em arquivo
 def setup_logger():
@@ -58,18 +58,11 @@ def test_coletar_detalhes_noticia():
         pytest.skip("Não foi possível acessar OneFootball para detalhes de notícia.")
 
 @pytest.mark.order(3)
-def test_verificar_titulos_existentes():
-    """
-    Testa a consulta ao Supabase para identificar títulos existentes.
-    """
+def test_verificar_links_existentes():
     sample_titulos = ["Titulo Inexistente", "Outro Titulo"]
-    try:
-        existentes = verificar_titulos_existentes(sample_titulos)
-        logger.info(f"Títulos existentes: {existentes}")
-        assert isinstance(existentes, list)
-    except Exception as e:
-        logger.error(f"Erro em verificar_titulos_existentes: {e}")
-        pytest.skip("Supabase indisponível para testes.")
+    existentes = verificar_links_existentes(sample_titulos)  # agora recebe URLs
+    assert isinstance(existentes, list)
+
 
 @pytest.mark.order(4)
 def test_endpoint_scrape():

@@ -21,7 +21,9 @@ def verify_api_key(api_key: str = Depends(api_key_header)):
     return True
 
 @app.get("/scrape", dependencies=[Depends(verify_api_key)])
-def scrape_onefootball(link: str = Query(..., description="URL da página do clube no OneFootball")):
+def scrape_onefootball(
+    link: str = Query(..., description="URL da página do clube no OneFootball")
+):
     """
     1) Coleta todos os títulos de notícias (primeira página).
     2) Verifica no Supabase quais links ainda não foram coletados.

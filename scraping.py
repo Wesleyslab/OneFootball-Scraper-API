@@ -5,6 +5,10 @@ import requests
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from difflib import SequenceMatcher
+from dateutil import parser
+import re
+
 
 from utils import USER_AGENTS
 
@@ -73,28 +77,13 @@ def coletar_titulos_noticias(
     return list(unique.values())
 
 
-def coletar_detalhes_noticia(
-    link: str,
-    max_retries: int = 3,
-    backoff_factor: float = 0.5
-) -> tuple:
-    """
-    Coleta o texto completo e data de publicação de uma notícia.
-
-    1) Procura tag <article>.
-    2) Se não achar, tenta seletor genérico.
-    3) Extrai apenas <p> diretos e filtra linhas indesejadas.
-
-    :param link: URL da notícia
-    :return: (texto, data_publicacao) onde data_publicacao está em formato ISO ou vazio
-    """
-    # Delay entre requisições para evitar bloqueios
+def coletar_detalhes_noticia(link: str) -> tuple:
     time.sleep(random.uniform(1, 2))
-
+    
     session = requests.Session()
     retry_strategy = Retry(
-        total=max_retries,
-        backoff_factor=backoff_factor,
+        total=3,
+        backoff_factor=0.5,
         status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods=["GET"]
     )
@@ -104,40 +93,96 @@ def coletar_detalhes_noticia(
 
     headers = {"User-Agent": random.choice(USER_AGENTS)}
     try:
-        response = session.get(link, headers=headers, timeout=10)
+        response = session.get(
+            link,
+            headers=headers,
+            timeout=(3.05, 15)  # Timeouts separados
+        )
         response.raise_for_status()
     except requests.RequestException as e:
         logger.error(f"Erro ao acessar {link}: {e}")
-        raise
+        return "", ""
 
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # Extrai data de publicação
-    meta = soup.find('meta', property='article:published_time')
-    if meta and meta.has_attr('content'):
-        data_pub = meta['content']
-    else:
-        time_tag = soup.find('time')
-        data_pub = time_tag['datetime'] if time_tag and time_tag.has_attr('datetime') else ''
+    # Data de publicação com fallbacks múltiplos
+    data_pub = ""
+    sources = [
+        ('meta', {'property': 'article:published_time'}),
+        ('meta', {'property': 'og:article:published_time'}),
+        ('meta', {'name': 'publish-date'}),
+        ('time', {'datetime': True}),
+        ('span', {'class': 'date'})
+    ]
 
-    # Seleciona container principal
-    container = soup.find('article')
-    if not container:
-        container = soup.find('div', attrs={'data-testid': 'article-body'})
-    if not container:
-        container = soup.find('div', class_='article-detail')
-    if not container:
-        raise RuntimeError("Container de artigo não encontrado")
+    for tag, attrs in sources:
+        element = soup.find(tag, attrs)
+        if element:
+            if element.has_attr('content'):
+                data_pub = element['content']
+            elif element.has_attr('datetime'):
+                data_pub = element['datetime']
+            elif element.text.strip():
+                data_pub = element.text.strip()
+            if data_pub:
+                break
 
-    # Extrai parágrafos diretos e filtra header/footer
+    # Padroniza formato da data
+    if data_pub:
+        try:
+            data_pub = parser.parse(data_pub).isoformat()
+        except Exception:
+            pass
+
+    # Container principal - NOVA ESTRATÉGIA
+    container = soup.find('div', class_='XpaLayout_xpaLayoutContainerGridItem__8b0EK')
+    
+    if not container:
+        # Fallback adicional
+        container = soup.find('div', class_='XpaLayout_xpaLayoutContainerGridItemComponents__MaerZ')
+    
+    if not container:
+        logger.warning(f"Nenhum container de artigo encontrado para {link}")
+        return "", data_pub
+
+    # Remover elementos não-textuais
+    for unwanted in container.find_all(['div', 'section', 'hr'], class_=[
+        'EmbeddedVideoPlayer_container__OkFxT',
+        'ArticleTwitter_container__d_Vqg',
+        'HorizontalSeparator_separator__EJ_El',
+        'XpaTaboolaPlaceholder_container__S7Qhw',
+        'PublisherImprintLink_container__RL6Zd',
+        'NativeShare_container__okhFj',
+        'CommentsOpenWeb_container__1hvpP'
+    ]):
+        unwanted.decompose()
+
+    # Extração de parágrafos - ESTRATÉGIA REVISADA
     paragrafos = []
-    for p in container.find_all('p', recursive=False):
-        txt = p.get_text(strip=True)
-        lower = txt.lower()
-        if not txt or lower.startswith('abrir menu') or lower.startswith('siga nosso conteúdo'):
-            continue
-        paragrafos.append(txt)
+    seen_texts = set()  # Evitar duplicatas
+    
+    for div in container.find_all('div', class_='ArticleParagraph_articleParagraph__MrxYL'):
+        for p in div.find_all('p'):
+            txt = p.get_text(strip=True)
+            if not txt or txt in seen_texts:
+                continue
+                
+            seen_texts.add(txt)
+            
+            lower_txt = txt.lower()
+            if any(phrase in lower_txt for phrase in [
+                'abrir menu', 'siga nosso conteúdo', 'compartilhe',
+                'leia mais', 'comentários', 'publicidade', 'veja também:',
+                'saiba mais', 'siga-nos', '🔗'
+            ]):
+                continue
+                
+            # Filtrar links isolados
+            if re.match(r'^https?://\S+$', txt):
+                continue
+                
+            paragrafos.append(txt)
 
     texto = '\n'.join(paragrafos)
-    logger.info(f"Detalhes coletados de {link}: {len(paragrafos)} parágrafos e data {data_pub}")
+    logger.info(f"Detalhes coletados de {link}: {len(paragrafos)} parágrafos")
     return texto, data_pub

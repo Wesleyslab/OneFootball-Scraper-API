@@ -2,9 +2,7 @@
 # 📰 OneFootball News Scraper API
 
 API desenvolvida em Python com FastAPI para realizar scraping de notícias no site [OneFootball](https://onefootball.com).
-<<<<<<< HEAD
 Seu objetivo é extrair os **títulos**, **conteúdo** e **fontes** das notícias relacionadas a um time específico, retornando apenas as que ainda **não foram processadas**, com controle via Supabase.
-
 
 ---
 

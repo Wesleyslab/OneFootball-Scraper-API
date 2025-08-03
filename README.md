@@ -1,4 +1,3 @@
-
 # 📰 OneFootball News Scraper API
 
 API desenvolvida em Python com FastAPI para realizar scraping de notícias no site [OneFootball](https://onefootball.com).
@@ -65,8 +64,8 @@ Verifica se a API está online.
 ### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/Wesleyslab/onefootball-news-scraper-api.git
-cd onefootball-news-scraper-api
+git clone https://github.com/Wesleyslab/OneFootball-Scraper-API.git
+cd OneFootball-Scraper-API
 ```
 
 ### 2. Instalar as dependências

@@ -2,7 +2,7 @@
 # 📰 OneFootball News Scraper API
 
 API desenvolvida em Python com FastAPI para realizar scraping de notícias no site [OneFootball](https://onefootball.com).
-Seu objetivo é extrair os **títulos, ** e **fontes** das notícias relacionadas a um time específico, retornando apenas o **conteúdo das notícias** que ainda **não foram processadas**, com controle via Supabase.
+Seu objetivo é extrair os **títulos**, **conteúdo** e **fontes** das notícias relacionadas a um time específico, retornando apenas as que ainda **não foram processadas**, com controle via Supabase.
 
 ---
 
@@ -10,47 +10,49 @@ Seu objetivo é extrair os **títulos, ** e **fontes** das notícias relacionada
 
 - **Python 3.10+**
 - **FastAPI**
-- **BeautifulSoup** (HTML parsing)
+- **BeautifulSoup**
 - **Requests**
-- **Supabase** (armazenamento de histórico)
-- **Docker** (opcional para deploy local)
+- **Supabase**
+- **Docker** (opcional)
 
 ---
 
-## 📌 Funcionalidades da API
+## 📌 Endpoints da API
 
 ### `GET /scrape?link=URL_DO_TIME`
 
-Realiza scraping da página de notícias de um time e retorna apenas as notícias ainda não registradas no Supabase.
+Coleta os metadados e o conteúdo das notícias de um time específico.
 
-**Exemplo:**
+**Exemplo de requisição:**
 
 ```
 GET /scrape?link=https://onefootball.com/pt/time/flamengo-383
 ```
 
-**Resposta:**
+**Exemplo de resposta:**
 
 ```json
-[
-  {
-    "title": "Flamengo divulga escalação para clássico",
-    "source": "Globo Esporte",
-    "link": "https://onefootball.com/pt/noticia/..."
-  },
-  {
-    "title": "Everton Cebolinha deve começar como titular",
-    "source": "Coluna do Fla",
-    "link": "https://onefootball.com/pt/noticia/..."
-  }
-]
+{
+  "novas_noticias": [
+    {
+      "titulo": "Flamengo divulga escalação para clássico",
+      "fonte": "Globo Esporte",
+      "link": "https://onefootball.com/pt/noticia/...",
+      "noticia_id": "123456",
+      "texto": "...",
+      "data_publicacao": "2025-08-01T18:00:00"
+    }
+  ]
+}
 ```
 
 ---
 
 ### `GET /health`
 
-Endpoint de verificação da API. Retorna:
+Verifica se a API está online.
+
+**Resposta:**
 
 ```json
 { "status": "ok" }
@@ -58,26 +60,32 @@ Endpoint de verificação da API. Retorna:
 
 ---
 
-## ⚙️ Como Rodar o Projeto Localmente
+## ⚙️ Como Rodar o Projeto
 
-1. Clone o repositório:
+### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/seuusuario/onefootball-news-scraper-api.git
+git clone https://github.com/Wesleyslab/onefootball-news-scraper-api.git
 cd onefootball-news-scraper-api
 ```
 
-2. Instale as dependências:
+### 2. Instalar as dependências
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Configure as variáveis de ambiente:
+### 3. Configurar variáveis de ambiente
 
-Crie um arquivo `.env` baseado no `.env.example` e adicione sua URL e chave da API do Supabase.
+Crie um arquivo `.env` com base em `.env.example`:
 
-4. Inicie o servidor:
+```env
+SUPABASE_URL=https://<seu_projeto>.supabase.co
+SUPABASE_KEY=chave_anon
+API_KEY=sua_api_key_aqui
+```
+
+### 4. Rodar a API localmente
 
 ```bash
 uvicorn main:app --reload
@@ -85,9 +93,7 @@ uvicorn main:app --reload
 
 ---
 
-## 🐳 Docker (opcional)
-
-Caso queira rodar com Docker:
+## 🐳 Usando Docker
 
 ```bash
 docker build -t onefootball-api .
@@ -100,43 +106,47 @@ docker run -p 8000:8000 onefootball-api
 
 ```mermaid
 flowchart TD
-    A[GET /scrape?link=...] --> B[Scraping com BeautifulSoup]
-    B --> C[Validação via Supabase]
-    C --> D[Retorno de notícias novas em JSON]
+    A[GET /scrape] --> B[Scraping com BeautifulSoup]
+    B --> C[Filtra duplicadas via Supabase]
+    C --> D[Enriquece conteúdo e responde JSON]
 ```
 
 ---
 
 ## 🧪 Testes
 
-Execute os testes de scraping com:
+Execute os testes com:
 
 ```bash
-python test_scraping.py
+python tester.py
 ```
 
 ---
 
-## 📂 Estrutura do Projeto
+## 🛠️ Configuração da Tabela no Supabase
 
-```
-onefootball-news-scraper-api/
-├── main.py                # Endpoints FastAPI
-├── scraping.py            # Lógica de scraping
-├── supabase_handler.py    # Integração com Supabase
-├── utils.py               # Funções auxiliares
-├── test_scraping.py       # Teste direto da lógica de scraping
-├── requirements.txt
-├── Dockerfile
-├── .env.example
-└── README.md
-```
+### 1. Criar a tabela `noticias_onefootball`
+
+| Coluna              | Tipo          | PK | Default               |
+| ------------------- | ------------- | -- | --------------------- |
+| `id`              | `uuid`      | ✅ | `gen_random_uuid()` |
+| `noticia_id`      | `text`      | ❌ |                       |
+| `titulo`          | `text`      | ❌ |                       |
+| `link`            | `text`      | ❌ |                       |
+| `fonte`           | `text`      | ❌ |                       |
+| `time`            | `text`      | ❌ |                       |
+| `data_criacao`    | `timestamp` | ❌ | `now()`             |
+| `texto`           | `text`      | ❌ |                       |
+| `data_publicacao` | `text`      | ❌ |                       |
+
+### 2. Ativar RLS (Row Level Security)
+
+- Vá em `Auth > Policies`
+- Ative RLS e adicione uma policy `SELECT` permitindo leitura com o usuário `anon`
 
 ---
 
 ## 👨‍💻 Autor
 
 Desenvolvido por **Wesley Alves**
-[LinkedIn](https://www.linkedin.com/in/seuusuario) • [GitHub](https://github.com/seuusuario)
-
----
+[LinkedIn](https://www.linkedin.com/in/wesley-alves-data-engineer) • [GitHub](https://github.com/Wesleyslab)
